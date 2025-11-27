@@ -1,4 +1,4 @@
-# TypeScript MCP Server 보일러플레이트
+# 보일러플레이트
 
 TypeScript MCP SDK를 활용하여 Model Context Protocol (MCP) 서버를 빠르게 개발할 수 있는 보일러플레이트 프로젝트입니다.
 
