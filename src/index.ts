@@ -19,6 +19,7 @@ const server = new McpServer({
 // 예시 도구: 인사하기
 server.tool(
     'greeting',
+    '사용자의 이름과 언어를 입력받아 해당언어로 인사말을 반환합니다',
     {
         name: z.string().describe('인사할 사람의 이름'),
         language: z
