@@ -1,19 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { InferenceClient } from '@huggingface/inference'
-// dotenv를 조용히 로드 (stdout 출력 방지) - 로컬 개발용
-import { config } from 'dotenv'
-// stdout을 임시로 가로채서 dotenv 출력 방지
-const originalWrite = process.stdout.write.bind(process.stdout)
-process.stdout.write = function(chunk: any, encoding?: any, cb?: any) {
-    if (typeof chunk === 'string' && chunk.includes('[dotenv@')) {
-        return true
-    }
-    return originalWrite(chunk, encoding, cb)
-}
-config()
-process.stdout.write = originalWrite
 
 // 설정 스키마 정의 (Smithery 배포용)
 export const configSchema = z.object({
@@ -25,12 +12,7 @@ export default function createServer({ config }: { config?: z.infer<typeof confi
     // 서버 인스턴스 생성
     const server = new McpServer({
         name: 'typescript-mcp-server',
-        version: '1.0.0',
-        capabilities: {
-            tools: {},
-            resources: {},
-            prompts: {}
-        }
+        version: '1.0.0'
     })
 
     // 환경 변수에서 토큰 가져오기 (config가 있으면 우선 사용, 없으면 환경 변수 사용)
@@ -197,7 +179,6 @@ export default function createServer({ config }: { config?: z.infer<typeof confi
         'server://info',
         'server://info',
         {
-            name: '서버 정보',
             description: 'TypeScript MCP Server 보일러플레이트 정보',
             mimeType: 'application/json'
         },
@@ -314,23 +295,4 @@ ${code}
 
     // 서버 객체 반환 (Smithery 요구사항)
     return server.server
-}
-
-// 로컬 개발용 실행 코드 (Smithery 배포 시에는 사용되지 않음)
-// 직접 실행될 때만 작동 (node build/index.js로 실행하는 경우)
-// Smithery는 createServer만 import하므로 이 코드는 실행되지 않음
-if (import.meta.url === `file://${process.argv[1]}`.replace(/\\/g, '/') || 
-    import.meta.url.includes('index.ts') && process.argv[1]?.includes('index')) {
-    async function main() {
-        const mcpServer = createServer({ config: { hfToken: process.env.HF_TOKEN } })
-        
-        const transport = new StdioServerTransport()
-        await mcpServer.connect(transport)
-        console.error('TypeScript MCP 서버가 시작되었습니다!')
-    }
-
-    main().catch(error => {
-        console.error('서버 시작 중 오류 발생:', error)
-        process.exit(1)
-    })
 }
