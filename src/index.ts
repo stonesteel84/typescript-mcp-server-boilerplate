@@ -2,8 +2,18 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { InferenceClient } from '@huggingface/inference'
-import dotenv from 'dotenv'
-dotenv.config()
+// dotenv를 조용히 로드 (stdout 출력 방지)
+import { config } from 'dotenv'
+// stdout을 임시로 가로채서 dotenv 출력 방지
+const originalWrite = process.stdout.write.bind(process.stdout)
+process.stdout.write = function(chunk: any, encoding?: any, cb?: any) {
+    if (typeof chunk === 'string' && chunk.includes('[dotenv@')) {
+        return true
+    }
+    return originalWrite(chunk, encoding, cb)
+}
+config()
+process.stdout.write = originalWrite
 
 // 서버 인스턴스 생성
 const server = new McpServer({
@@ -120,6 +130,7 @@ server.tool(
 // 이미지 생성 도구
 server.tool(
     'generate_image',
+    "너는 지금부터 이미지 생성 도구야. 사용자의 프롬프트를 받아 이미지를 생성해줘.",
     {
         prompt: z.string().describe('이미지 생성을 위한 프롬프트')
     },
@@ -135,7 +146,7 @@ server.tool(
 
             // 이미지 생성 요청
             const imageBlob = await client.textToImage({
-                provider: 'fal-ai',
+                provider: 'auto',
                 model: 'black-forest-labs/FLUX.1-schnell',
                 inputs: prompt,
                 parameters: { num_inference_steps: 5 }
@@ -218,6 +229,72 @@ server.prompt(
                     content: {
                         type: 'text',
                         text: `다음 코드를 분석하고 상세한 리뷰를 제공해주세요:\n\n1. 코드 품질 평가\n2. 개선 가능한 부분\n3. 모범 사례 권장사항\n4. 보안 고려사항\n\n리뷰할 코드:\n\n\`\`\`\n${code}\n\`\`\``
+                    }
+                }
+            ]
+        }
+    }
+)
+
+// 싸가지 없는 코드 리뷰 프롬프트
+server.prompt(
+    'code_review2',
+    '싸가지 없는 말투로 코드 리뷰하기',
+    {
+        code: z.string().describe('리뷰할 코드')
+    },
+    async ({ code }) => {
+        return {
+            messages: [
+                {
+                    role: 'user',
+                    content: {
+                        type: 'text',
+                        text: `너는 지금부터 싸가지 없고 까칠한 시니어 개발자야. 반말을 쓰고, 비꼬는 말투로 코드를 리뷰해줘. 단, 실제로 도움이 되는 피드백은 꼭 포함해야 해.
+
+리뷰 형식:
+1. 🤮 첫인상 (코드 보자마자 든 생각)
+2. 🔥 이게 뭐야? (심각한 문제점들)
+3. 😤 아 진짜... (개선이 필요한 부분)
+4. 🙄 그나마 봐줄만한 것 (잘한 점이 있다면)
+5. 📝 결론 (총평)
+
+리뷰할 코드:
+
+\`\`\`
+${code}
+\`\`\``
+                    }
+                }
+            ]
+        }
+    }
+)
+
+// 이미지 분석 프롬프트 (이미지 포함 예시)
+server.prompt(
+    'analyze_image',
+    '이미지를 분석하는 프롬프트',
+    {
+        imageBase64: z.string().describe('Base64로 인코딩된 이미지 데이터'),
+        question: z.string().optional().describe('이미지에 대한 질문 (선택)')
+    },
+    async ({ imageBase64, question }) => {
+        return {
+            messages: [
+                {
+                    role: 'user' as const,
+                    content: {
+                        type: 'image' as const,
+                        data: imageBase64,
+                        mimeType: 'image/png'
+                    }
+                },
+                {
+                    role: 'user' as const,
+                    content: {
+                        type: 'text' as const,
+                        text: question || '이 이미지를 자세히 분석해주세요. 무엇이 보이나요?'
                     }
                 }
             ]
