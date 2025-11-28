@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { InferenceClient } from '@huggingface/inference'
 
@@ -295,4 +296,29 @@ ${code}
 
     // 서버 객체 반환 (Smithery 요구사항)
     return server.server
+}
+
+// Docker/로컬 실행용 코드 (Smithery에서는 import만 하므로 실행되지 않음)
+// 직접 실행될 때만 작동 (node build/index.js로 실행하는 경우)
+// Smithery는 createServer만 import하므로 이 코드는 실행되지 않음
+if (!process.env.SMITHERY_RUNTIME && (import.meta.url.endsWith('index.js') || process.argv[1]?.endsWith('index.js'))) {
+    async function main() {
+        try {
+            const mcpServer = createServer({ 
+                config: { hfToken: process.env.HF_TOKEN } 
+            })
+            
+            const transport = new StdioServerTransport()
+            await mcpServer.connect(transport)
+            console.error('TypeScript MCP 서버가 시작되었습니다!')
+        } catch (error) {
+            console.error('서버 시작 중 오류 발생:', error)
+            process.exit(1)
+        }
+    }
+
+    main().catch(error => {
+        console.error('서버 시작 중 오류 발생:', error)
+        process.exit(1)
+    })
 }
